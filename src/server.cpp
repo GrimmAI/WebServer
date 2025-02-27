@@ -7,13 +7,11 @@
 #include <sys/epoll.h>
 #include <fcntl.h>
 #include <errno.h>
+#include "tcp/Socket.h"
+#include "tcp/InetAddress.h"
 
 #define MAX_EVENTS 100
 
-
-inline void setnonblocking(int fd) {
-    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
-}
 
 inline void handleEvent(int clnt_sockfd) {
     char buf[1024];
@@ -38,52 +36,35 @@ inline void handleEvent(int clnt_sockfd) {
 }
 
 int main() {
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd == -1) {
-        printf("socket create error");
-        exit(-1);
-    }
-    struct sockaddr_in serv_addr;
-    memset(&serv_addr, 0, sizeof serv_addr);
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    serv_addr.sin_port = htons(8888);
+    Socket* sockfd = new Socket();
+    InetAddress* serv_addr = new InetAddress("127.0.0.1", 8888);
+    sockfd->bind(serv_addr);
+    sockfd->listen();
 
-    if (bind(sockfd, (sockaddr*)&serv_addr, sizeof serv_addr) == -1) {
-        printf("bind error");
-        exit(-1);
-    }
+    InetAddress* clnt_addr = new InetAddress();
 
-    if (listen(sockfd, SOMAXCONN)) {
-        printf("listen error");
-        exit(-1);
-    }
-
-    struct sockaddr_in clnt_addr;
-    memset(&clnt_addr, 0, sizeof clnt_addr);
-    socklen_t clnt_addr_len = sizeof(clnt_addr);
 
     int epfd = epoll_create1(0);
     struct epoll_event events[MAX_EVENTS], ev;
     ev.events = EPOLLIN;
-    ev.data.fd = sockfd;
-    epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev);
+    ev.data.fd = sockfd->get_fd();
+    epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd->get_fd(), &ev);
 
     while (true) {
         int nfds = epoll_wait(epfd, events, MAX_EVENTS, -1);
         for (int i = 0; i < nfds; i++) {
-            if (events[i].data.fd == sockfd) {
-                int clnt_sockfd = accept(sockfd, (sockaddr*)&clnt_addr, &clnt_addr_len);
-                ev.data.fd = clnt_sockfd;
+            if (events[i].data.fd == sockfd->get_fd()) {
+                auto clnt_sockfd = sockfd->accept(clnt_addr);
+                ev.data.fd = clnt_sockfd->get_fd();
                 ev.events = EPOLLIN | EPOLLET;
-                setnonblocking(clnt_sockfd);
-                epoll_ctl(epfd, EPOLL_CTL_ADD, clnt_sockfd, &ev);
+                clnt_sockfd->setnonblocking();
+                epoll_ctl(epfd, EPOLL_CTL_ADD, clnt_sockfd->get_fd(), &ev);
             } else if (events[i].events & EPOLLIN) {
                 handleEvent(events[i].data.fd);
             }
         }
     }
 
-    close(sockfd);
+    delete sockfd;
     return 0;
 }
