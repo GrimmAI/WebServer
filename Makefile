@@ -1,4 +1,6 @@
 server:
-	g++ src/server.cpp -o server && g++ src/client.cpp -o client
+	g++ src/server.cpp src/tcp/Epoll.cpp src/tcp/InetAddress.cpp src/tcp/Socket.cpp -o server
+client:
+	g++ src/client.cpp src/tcp/InetAddress.cpp src/tcp/Socket.cpp -o client
 clean:
 	rm server && rm client

@@ -9,6 +9,7 @@
 #include <errno.h>
 #include "tcp/Socket.h"
 #include "tcp/InetAddress.h"
+#include "tcp/Epoll.h"
 
 #define MAX_EVENTS 100
 
@@ -43,28 +44,23 @@ int main() {
 
     InetAddress* clnt_addr = new InetAddress();
 
-
-    int epfd = epoll_create1(0);
-    struct epoll_event events[MAX_EVENTS], ev;
-    ev.events = EPOLLIN;
-    ev.data.fd = sockfd->get_fd();
-    epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd->get_fd(), &ev);
+    Epoll* epfd = new Epoll();
+    epfd->addfd(sockfd->get_fd(), EPOLLIN);
 
     while (true) {
-        int nfds = epoll_wait(epfd, events, MAX_EVENTS, -1);
-        for (int i = 0; i < nfds; i++) {
-            if (events[i].data.fd == sockfd->get_fd()) {
-                auto clnt_sockfd = sockfd->accept(clnt_addr);
-                ev.data.fd = clnt_sockfd->get_fd();
-                ev.events = EPOLLIN | EPOLLET;
+        std::vector<epoll_event> events = epfd->poll();
+        for (auto &ev: events) {
+            if (ev.data.fd == sockfd->get_fd()) {
+                Socket* clnt_sockfd = sockfd->accept(clnt_addr);
                 clnt_sockfd->setnonblocking();
-                epoll_ctl(epfd, EPOLL_CTL_ADD, clnt_sockfd->get_fd(), &ev);
-            } else if (events[i].events & EPOLLIN) {
-                handleEvent(events[i].data.fd);
+                epfd->addfd(clnt_sockfd->get_fd(), EPOLLIN | EPOLLET);
+            } else if (ev.events & EPOLLIN) {
+                handleEvent(ev.data.fd);
             }
         }
     }
 
     delete sockfd;
+    delete epfd;
     return 0;
 }

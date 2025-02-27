@@ -7,8 +7,8 @@ private:
     int epfd;
     struct epoll_event* events;
 public:
-    Epoll(int);
     Epoll();
     ~Epoll();
-    
+    void addfd(int, int);
+    std::vector<epoll_event> poll();
 };

@@ -55,6 +55,13 @@ Socket* Socket::accept(InetAddress* clnt_addr) {
     return clnt_sock;
 }
 
+void Socket::connect(InetAddress* serv_addr) {
+    if (::connect(sockfd, (sockaddr*)&serv_addr->sock_addr, sizeof(serv_addr->sock_addr)) == -1) {
+        printf("connect error");
+        exit(-1);
+    }
+}
+
 int Socket::get_fd() {
     return sockfd;
 }

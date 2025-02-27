@@ -12,6 +12,7 @@ public:
 
     void bind(InetAddress* serv_addr);
     void listen();
+    void connect(InetAddress* serv_addr);
     void setnonblocking();
     Socket* accept(InetAddress* clnt_addr);
     int get_fd();
