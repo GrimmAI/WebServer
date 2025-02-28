@@ -10,8 +10,7 @@
 #include "tcp/Socket.h"
 #include "tcp/InetAddress.h"
 #include "tcp/Epoll.h"
-
-#define MAX_EVENTS 100
+#include "tcp/Channel.h"
 
 
 inline void handleEvent(int clnt_sockfd) {
@@ -41,21 +40,24 @@ int main() {
     InetAddress* serv_addr = new InetAddress("127.0.0.1", 8888);
     sockfd->bind(serv_addr);
     sockfd->listen();
-
+    sockfd->setnonblocking();
+    
     InetAddress* clnt_addr = new InetAddress();
 
     Epoll* epfd = new Epoll();
-    epfd->addfd(sockfd->get_fd(), EPOLLIN);
+    Channel* serv_Channel = new Channel(epfd, sockfd->get_fd());
+    serv_Channel->enableReading();
 
     while (true) {
-        std::vector<epoll_event> events = epfd->poll();
-        for (auto &ev: events) {
-            if (ev.data.fd == sockfd->get_fd()) {
+        std::vector<Channel*> active_channel = epfd->poll();
+        for (auto &ch: active_channel) {
+            if (ch->get_fd() == sockfd->get_fd()) {
                 Socket* clnt_sockfd = sockfd->accept(clnt_addr);
                 clnt_sockfd->setnonblocking();
-                epfd->addfd(clnt_sockfd->get_fd(), EPOLLIN | EPOLLET);
-            } else if (ev.events & EPOLLIN) {
-                handleEvent(ev.data.fd);
+                Channel* clnt_Channel = new Channel(epfd, clnt_sockfd->get_fd());
+                clnt_Channel->enableReading();
+            } else if (ch->get_events() & EPOLLIN) {
+                handleEvent(ch->get_fd());
             }
         }
     }

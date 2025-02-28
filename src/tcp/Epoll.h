@@ -2,6 +2,7 @@
 #include <sys/epoll.h>
 #include <vector>
 
+class Channel;
 class Epoll {
 private:
     int epfd;
@@ -9,6 +10,6 @@ private:
 public:
     Epoll();
     ~Epoll();
-    void addfd(int, int);
-    std::vector<epoll_event> poll();
+    std::vector<Channel*> poll();
+    void update_channel(Channel*);
 };
