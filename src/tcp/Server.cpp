@@ -25,7 +25,9 @@ void Server::newConnection(Socket* serv_sockfd) {
 }
 
 void Server::deleteConnection(Socket* serv_sockfd) {
+    Connection* conn = connections[serv_sockfd->get_fd()];
     connections.erase(serv_sockfd->get_fd());
+    delete conn;
 }
 
 

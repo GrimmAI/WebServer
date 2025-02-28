@@ -3,6 +3,7 @@
 class EventLoop;
 class Socket;
 class InetAddress;
+class Buffer;
 class Connection {
 private:
     EventLoop* lp;
@@ -10,6 +11,7 @@ private:
     InetAddress* clnt_addr;
     Socket* serv_sockfd;
     std::function<void(Socket*)> cb;
+    Buffer* readBuffer;
 public:
     Connection(EventLoop*, Socket*);
     ~Connection();

@@ -4,6 +4,7 @@
 #include "Channel.h"
 #include <cstring>
 #include <unistd.h>
+#include "Buffer.h"
 
 
 Connection::Connection(EventLoop* _lp, Socket* _serv_sockfd) : lp(_lp), serv_sockfd(_serv_sockfd) {
@@ -14,6 +15,8 @@ Connection::Connection(EventLoop* _lp, Socket* _serv_sockfd) : lp(_lp), serv_soc
     clnt_Channel->enableReading();
     std::function<void()> callback = std::bind(&Connection::echo, this, clnt_sockfd);
     clnt_Channel->set_event_callback(callback);
+
+    readBuffer = new Buffer();
 }
 
 Connection::~Connection() {
@@ -27,17 +30,20 @@ void Connection::echo(Socket* clnt_sockfd) {
         memset(buf, 0, sizeof buf);
         ssize_t read_bytes = read(clnt_sockfd->get_fd(), buf, sizeof buf);
         if (read_bytes > 0) {
-            printf("message from client fd %d: %s\n", clnt_sockfd->get_fd(), buf);
-            write(clnt_sockfd->get_fd(), buf, sizeof buf);
+            readBuffer->append(buf, read_bytes);
         } else if (read_bytes == -1 && errno == EINTR) {
             printf("continue reading");
             continue;
         } else if (read_bytes == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-            // printf("finish reading once, errno: %d\n", errno);
+            printf("finish reading once\n");
+            printf("message from client fd %d: %s\n", clnt_sockfd->get_fd(), readBuffer->c_str());
+            write(clnt_sockfd->get_fd(), readBuffer->c_str(), readBuffer->size());
+            readBuffer->clear();
             break;
         } else if (read_bytes == 0) {
             printf("EOF, client fd %d disconnected\n", clnt_sockfd->get_fd());
             close(clnt_sockfd->get_fd());   //关闭socket会自动将文件描述符从epoll树上移除
+            cb(clnt_sockfd);
             break;
         }
     }
