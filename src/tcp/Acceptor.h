@@ -1,19 +1,19 @@
 #pragma once
 #include <functional>
+#include <arpa/inet.h>
+#include <string>
 
-class Socket;
-class InetAddress;
 class EventLoop;
 class Acceptor {
 private:
-    Socket* sockfd;
-    InetAddress* serv_addr;
+    int serv_sockfd;
+    struct sockaddr_in serv_addr;
     EventLoop* lp;
-    std::function<void(Socket*)> cb;
+    std::function<void(int)> cb;
 
 public:
-    Acceptor(EventLoop*);
+    Acceptor(EventLoop*, std::string, int);
     ~Acceptor();
-    void set_conn_callback(std::function<void(Socket*)>);
+    void set_conn_callback(std::function<void(int)>);
     void acceptConnection();
 };

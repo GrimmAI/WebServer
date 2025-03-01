@@ -2,12 +2,12 @@
 #include "Epoll.h"
 #include "Channel.h"
 
-EventLoop::EventLoop() {
-    ep = new Epoll();
+EventLoop:: EventLoop() {
+    ep = std::make_unique<Epoll>();
 }
 
 EventLoop::~EventLoop() {
-    delete ep;
+
 }
 
 void EventLoop::loop() {

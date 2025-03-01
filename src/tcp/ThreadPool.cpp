@@ -1,6 +1,6 @@
 #include "ThreadPool.h"
 
-ThreadPool::ThreadPool(size_t numThreads) {
+ThreadPool::ThreadPool(size_t numThreads = 10) {
     auto worker = [this]() {
         while (true) {
             std::function<void()> task;

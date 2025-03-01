@@ -1,11 +1,11 @@
 #pragma once
 #include <vector>
-
+#include <memory>
 class Epoll;
 class Channel;
 class EventLoop {
 private:
-    Epoll* ep;
+    std::unique_ptr<Epoll> ep;
 
 public:
     EventLoop();
