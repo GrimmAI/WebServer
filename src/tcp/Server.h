@@ -20,13 +20,13 @@ private:
     int idx;
     std::string ip;
     int port;
-    std::function<void(int)> handle_message_callback;
+    std::function<void(Connection*)> handle_message_callback;
 public:
     Server(std::string, int);
     ~Server();
 
     void newConnection(int);
     void deleteConnection(int);
-    void set_handle_message_callback(std::function<void(int)>);
+    void set_handle_message_callback(std::function<void(Connection*)>);
     void start();
 };

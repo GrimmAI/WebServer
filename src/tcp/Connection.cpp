@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include "Buffer.h"
 #include <fcntl.h>
+#include <iostream>
 
 
 Connection::Connection(EventLoop* _lp, int _serv_sockfd, std::string ip, int port) : lp(_lp), serv_sockfd(_serv_sockfd) {
@@ -17,7 +18,7 @@ Connection::Connection(EventLoop* _lp, int _serv_sockfd, std::string ip, int por
     clnt_sockfd = accept(serv_sockfd, (sockaddr*)&clnt_addr, &clnt_addr_len);
     fcntl(clnt_sockfd, F_SETFL, fcntl(clnt_sockfd, F_GETFL) | O_NONBLOCK);
 
-    std::unique_ptr clnt_Channel = std::make_unique<Channel>(lp, clnt_sockfd);
+    clnt_Channel = std::make_unique<Channel>(lp, clnt_sockfd);
     clnt_Channel->enableReading();
     std::function<void()> callback = std::bind(&Connection::handle_message, this);
     clnt_Channel->set_event_callback(callback);
@@ -30,7 +31,7 @@ Connection::~Connection() {
     delete_connection_callback(clnt_sockfd);
 }
 
-void Connection::set_handle_message_callback(std::function<void(int)> func) {
+void Connection::set_handle_message_callback(std::function<void(Connection*)> func) {
     handle_message_callback = func;
 }
 
@@ -39,12 +40,16 @@ void Connection::set_delete_connection_callback(std::function<void(int)> func) {
 }
 
 void Connection::handle_message() {
-    handle_message_callback(clnt_sockfd);
+    // std::cout << "handle_message callback\n";
+    handle_message_callback(this);
 }
 
 
 
 
+std::string Connection::get_read_buffer() {
+    return readBuffer->get_buf();
+}
 
 void Connection::set_send_buf(const char* str) {
     sendBuffer->setBuf(str); 

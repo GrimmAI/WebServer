@@ -6,10 +6,11 @@
 #include "Connection.h"
 #include "ThreadPool.h"
 #include "EventLoop.h"
+#include <iostream>
 
 Server::Server(std::string _ip, int _port) : idx(0), ip(_ip), port(_port) {
     main_reactor = std::make_unique<EventLoop>();
-    acceptor = std::make_unique<Acceptor>(main_reactor, ip, port);
+    acceptor = std::make_unique<Acceptor>(main_reactor.get(), ip, port);
 
     std::function<void(int)> cb = std::bind(&Server::newConnection, this, std::placeholders::_1);
     acceptor->set_conn_callback(cb);
@@ -20,7 +21,7 @@ Server::Server(std::string _ip, int _port) : idx(0), ip(_ip), port(_port) {
 
     for (int i = 0; i < thread_num; i++) {
         sub_reactor.push_back(std::make_unique<EventLoop>());
-        std::function<void()> func = std::bind(&EventLoop::loop, sub_reactor[i]);
+        std::function<void()> func = std::bind(&EventLoop::loop, sub_reactor[i].get());
         thread_pool->enqueue(func);
     }
 
@@ -33,6 +34,7 @@ Server::~Server() {
 
 
 void Server::newConnection(int serv_sockfd) {
+    // std::cout << "newConnection\n";
     Connection* tcp_connection = new Connection(sub_reactor[idx % sub_reactor.size()].get(), serv_sockfd, ip, port);
     tcp_connection->set_handle_message_callback(handle_message_callback);
     connections[serv_sockfd] = tcp_connection;
@@ -42,13 +44,14 @@ void Server::newConnection(int serv_sockfd) {
 }
 
 void Server::deleteConnection(int serv_sockfd) {
+    // std::cout << "deleteConnection\n";
     Connection* conn = connections[serv_sockfd];
     connections.erase(serv_sockfd);
     delete conn;
 }
 
 
-void Server::set_handle_message_callback(std::function<void(int)> func) {
+void Server::set_handle_message_callback(std::function<void(Connection*)> func) {
     handle_message_callback = func;
 }
 

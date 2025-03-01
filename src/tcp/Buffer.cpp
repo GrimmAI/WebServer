@@ -10,6 +10,9 @@ Buffer::~Buffer() {
 
 }
 
+std::string Buffer::get_buf() {
+    return buf;
+}
 
 void Buffer::append(const char* _str, int _size) {
     for(int i = 0; i < _size; i++) {
