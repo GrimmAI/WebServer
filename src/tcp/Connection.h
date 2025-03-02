@@ -6,6 +6,7 @@
 class Channel;
 class EventLoop;
 class Buffer;
+class HttpParase;
 class Connection {
 private:
     EventLoop* lp;
@@ -17,6 +18,8 @@ private:
     std::unique_ptr<Buffer> readBuffer;
     std::unique_ptr<Buffer> sendBuffer;
     std::unique_ptr<Channel> clnt_Channel;
+
+    std::unique_ptr<HttpParase> http_parase;
 public:
     Connection(EventLoop*, int, std::string, int);
     ~Connection();
@@ -32,4 +35,5 @@ public:
     void write();
     void ReadNonBlocking();
     void WriteNonBlocking();
+    HttpParase* get_http_parase();
 };

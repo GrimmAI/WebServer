@@ -5,6 +5,7 @@
 #include "Buffer.h"
 #include <fcntl.h>
 #include <iostream>
+#include "http/HttpParase.h"
 
 
 Connection::Connection(EventLoop* _lp, int _serv_sockfd, std::string ip, int port) : lp(_lp), serv_sockfd(_serv_sockfd) {
@@ -25,6 +26,12 @@ Connection::Connection(EventLoop* _lp, int _serv_sockfd, std::string ip, int por
 
     readBuffer = std::make_unique<Buffer>();
     sendBuffer = std::make_unique<Buffer>();
+
+    http_parase = std::make_unique<HttpParase>();
+}
+
+HttpParase* Connection::get_http_parase() {
+    return http_parase.get();
 }
 
 Connection::~Connection() {
