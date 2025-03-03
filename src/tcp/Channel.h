@@ -5,8 +5,8 @@
 class EventLoop;
 class Channel {
 private:
-    int fd;
     EventLoop* lp;
+    int fd;
     uint32_t events;
     uint32_t pre_events;
     bool inEpoll;
@@ -22,7 +22,7 @@ public:
     uint32_t get_events();
     uint32_t get_pre_events();
     bool getInEpoll();
-    void setInEpoll();
+    void setInEpoll(bool);
     void setRevents(uint32_t);
     void handleEvent();
     void set_event_callback(std::function<void()>);

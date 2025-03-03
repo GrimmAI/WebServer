@@ -12,4 +12,5 @@ public:
     ~Epoll();
     std::vector<Channel*> poll();
     void update_channel(Channel*);
+    void delete_channel(Channel*) const;
 };

@@ -5,7 +5,7 @@
 #include "Buffer.h"
 #include <fcntl.h>
 #include <iostream>
-#include "http/HttpParase.h"
+#include "../http/HttpParase.h"
 
 
 Connection::Connection(EventLoop* _lp, int _serv_sockfd, std::string ip, int port) : lp(_lp), serv_sockfd(_serv_sockfd) {

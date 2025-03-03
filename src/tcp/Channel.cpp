@@ -31,8 +31,8 @@ bool Channel::getInEpoll() {
     return inEpoll;
 }
 
-void Channel::setInEpoll() {
-    inEpoll = true;
+void Channel::setInEpoll(bool ok) {
+    inEpoll = ok;
 }
 
 void Channel::setRevents(uint32_t events) {
@@ -46,3 +46,4 @@ void Channel::handleEvent() {
 void Channel::set_event_callback(std::function<void()> func) {
     cb = func;
 }
+

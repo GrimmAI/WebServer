@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <cstring>
 #include "Channel.h"
+#include <iostream>
 
 #define MAX_EVENTS 100
 
@@ -38,9 +39,17 @@ void Epoll::update_channel(Channel* ch) {
     ev.events = ch->get_events();   //拿到Channel希望监听的事件
     if(!ch->getInEpoll()) {
         epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev);//添加Channel中的fd到epoll
-        ch->setInEpoll();
+        ch->setInEpoll(true);
     } else{
         epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &ev);//已存在，则修改
     }
+}
+
+void Epoll::delete_channel(Channel* ch) const {
+    int sockfd = ch->get_fd();
+    if (epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, nullptr) == -1){
+        std::cout << "Epoller::UpdateChannel epoll_ctl_del failed" << std::endl;
+    }
+    ch->setInEpoll(false);
 }
 
