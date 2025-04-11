@@ -9,12 +9,12 @@
 
 class ThreadPool {
 private:
-    std::vector<std::thread> workers;
-    std::queue<std::function<void()>> tasks;
+    std::vector<std::thread> workers_;
+    std::queue<std::function<void()>> tasks_;
 
-    std::mutex queueMutex;
-    std::condition_variable condition;
-    bool stop = false;
+    std::mutex queueMutex_;
+    std::condition_variable condition_;
+    bool stop_ = false;
 
 public:
     ThreadPool(size_t numThreads);
@@ -30,14 +30,13 @@ public:
 
         std::future<return_type> res = task->get_future();
         {
-            std::unique_lock<std::mutex> lock(queueMutex);
-            if (stop) {
+            std::unique_lock<std::mutex> lock(queueMutex_);
+            if (stop_) {
                 throw std::runtime_error("enqueue on stopped ThreadPool");
             }
             tasks.emplace([task]() { (*task)(); });
         }
-        condition.notify_one();  // 唤醒一个线程
+        condition_.notify_one();  // 唤醒一个线程
         return res;
     }
-
 };
