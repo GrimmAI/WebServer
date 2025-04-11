@@ -6,7 +6,7 @@
 #include <string>
 #include <thread>
 
-const std::string html = " <font color=\"red\">This is html!</font> ";
+const std::string html = " <font color=\"red\">This is html! mannnnnnnnnn! </font> ";
 void HttpResponseCallback(const HttpRequest &request, HttpResponse *response)
 {
     if(request.method() != HttpRequest::Method::kGet){
