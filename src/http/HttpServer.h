@@ -4,19 +4,19 @@
 #include <functional>
 
 class Connection;
-class Server;
+class TcpServer;
 class HttpRequest;
 class HttpResponse;
 class HttpServer {
 private:
-    std::unique_ptr<Server> tcp_server;
-    std::function<void(const HttpRequest&, HttpResponse*)> build_response_message_callback;
+    std::unique_ptr<TcpServer> tcp_server_;
+    std::function<void(const HttpRequest &, HttpResponse *)> build_response_message_callback_;
 public:
     HttpServer(std::string, int);
     ~HttpServer();
-    void handle_request_message(Connection*);
-    void send_response_message(Connection*, const HttpRequest&);
+    void HandleRequestMessage(Connection*);
+    void SendResponseMessage(Connection*, const HttpRequest&);
 
-    void start();
-    void set_build_message_callback(std::function<void(const HttpRequest&, HttpResponse*)>);
+    void Start();
+    void SetBuildResponseMessageCallback(std::function<void(const HttpRequest &, HttpResponse *)> &&);
 };

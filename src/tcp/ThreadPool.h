@@ -34,7 +34,7 @@ public:
             if (stop_) {
                 throw std::runtime_error("enqueue on stopped ThreadPool");
             }
-            tasks.emplace([task]() { (*task)(); });
+            tasks_.emplace([task]() { (*task)(); });
         }
         condition_.notify_one();  // 唤醒一个线程
         return res;

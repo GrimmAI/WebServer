@@ -25,9 +25,7 @@ aux_source_directory(src/http SRC_LIST2)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build/test)
 
 # 添加可执行文件
-add_executable(httpserver src/http_server.cpp ${SRC_LIST1} ${SRC_LIST2})
-add_executable(echoserver src/server.cpp ${SRC_LIST1} ${SRC_LIST2})
-add_executable(client src/client.cpp ${SRC_LIST1} ${SRC_LIST2})
+add_executable(httpserver src/test/http_server.cpp ${SRC_LIST1} ${SRC_LIST2})
 
 # 链接线程库
 target_link_libraries(httpserver ${CMAKE_THREAD_LIBS_INIT})

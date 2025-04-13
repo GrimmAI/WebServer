@@ -7,89 +7,94 @@
 #include <iostream>
 #include "../http/HttpParase.h"
 
+Connection::Connection(std::shared_ptr<EventLoop> lp, int serv_sockfd, std::string ip, int port)
+                       : lp_(lp), serv_sockfd_(serv_sockfd) {
+    memset(&clnt_addr_, 0, sizeof clnt_addr_);
+    clnt_addr_.sin_family = AF_INET;
+    clnt_addr_.sin_addr.s_addr = inet_addr(ip.c_str());
+    clnt_addr_.sin_port = htons(port);
 
-Connection::Connection(EventLoop* _lp, int _serv_sockfd, std::string ip, int port) : lp(_lp), serv_sockfd(_serv_sockfd) {
-    memset(&clnt_addr, 0, sizeof clnt_addr);
-    clnt_addr.sin_family = AF_INET;
-    clnt_addr.sin_addr.s_addr = inet_addr(ip.c_str());
-    clnt_addr.sin_port = htons(port);
+    socklen_t clnt_addr_len = sizeof(clnt_addr_);
 
-    socklen_t clnt_addr_len = sizeof(clnt_addr);
+    clnt_sockfd_ = accept(serv_sockfd, (sockaddr*)&clnt_addr_, &clnt_addr_len);
+    fcntl(clnt_sockfd_, F_SETFL, fcntl(clnt_sockfd_, F_GETFL) | O_NONBLOCK);
 
-    clnt_sockfd = accept(serv_sockfd, (sockaddr*)&clnt_addr, &clnt_addr_len);
-    fcntl(clnt_sockfd, F_SETFL, fcntl(clnt_sockfd, F_GETFL) | O_NONBLOCK);
+    clnt_Channel_ = std::make_unique<Channel>(lp, clnt_sockfd_);
+    clnt_Channel_->EnableReading();
+    std::function<void()> cb = std::bind(&Connection::HandleMessage, this);
+    clnt_Channel_->SetEventCallback(std::move(cb));
 
-    clnt_Channel = std::make_unique<Channel>(lp, clnt_sockfd);
-    clnt_Channel->enableReading();
-    std::function<void()> callback = std::bind(&Connection::handle_message, this);
-    clnt_Channel->set_event_callback(callback);
+    readBuffer_ = std::make_unique<Buffer>();
+    sendBuffer_ = std::make_unique<Buffer>();
 
-    readBuffer = std::make_unique<Buffer>();
-    sendBuffer = std::make_unique<Buffer>();
-
-    http_parase = std::make_unique<HttpParase>();
+    http_parase_ = std::make_unique<HttpParase>();
+    connection_state_ = ConnectionState::Connected;
 }
 
-HttpParase* Connection::get_http_parase() {
-    return http_parase.get();
+HttpParase * Connection::GetHttpParase() {
+    return http_parase_.get();
 }
 
 Connection::~Connection() {
-    delete_connection_callback(clnt_sockfd);
+    if (connection_state_ == ConnectionState::Connected) {
+        delete_connection_callback_(clnt_sockfd_);
+    }
 }
 
-void Connection::set_handle_message_callback(std::function<void(Connection*)> func) {
-    handle_message_callback = func;
+void Connection::SetHandleMessageCallback(std::function<void(Connection *)> &&func) {
+    handle_message_callback_ = std::move(func);
 }
 
-void Connection::set_delete_connection_callback(std::function<void(int)> func) {
-    delete_connection_callback = func;
+void Connection::SetDeleteConnectionCallback(std::function<void(int)> &&func) {
+    delete_connection_callback_ = std::move(func);
 }
 
-void Connection::handle_message() {
+void Connection::Close() {
+    if (connection_state_ == ConnectionState::Connected) {
+        delete_connection_callback_(clnt_sockfd_);
+    }
+}
+
+void Connection::HandleMessage() {
     // std::cout << "handle_message callback\n";
-    handle_message_callback(this);
+    handle_message_callback_(this);
 }
 
-
-
-
-std::string Connection::get_read_buffer() {
-    return readBuffer->get_buf();
+std::string Connection::GetReadBuffer() {
+    return readBuffer_->get_buf();
 }
 
-void Connection::set_send_buf(const char* str) {
-    sendBuffer->setBuf(str); 
+void Connection::SetSendBuf(const char* str) {
+    sendBuffer_->setBuf(str); 
 }
 
-void Connection::send(const std::string &msg){
-    set_send_buf(msg.c_str());
-    write();
+void Connection::Send(const std::string &msg){
+    SetSendBuf(msg.c_str());
+    Write();
 }
 
-void Connection::send(const char* msg){
-    set_send_buf(msg);
-    write();
+void Connection::Send(const char* msg){
+    SetSendBuf(msg);
+    Write();
 }
 
-void Connection::read() {
-    readBuffer->clear();
+void Connection::Read() {
+    readBuffer_->clear();
     ReadNonBlocking();
 }
 
-void Connection::write() {
+void Connection::Write() {
     WriteNonBlocking();
-    sendBuffer->clear();
+    sendBuffer_->clear();
 }
-
 
 void Connection::ReadNonBlocking() {
     char buf[1024];
     while(true){
         memset(buf, 0, sizeof(buf));
-        ssize_t bytes_read = ::read(clnt_sockfd, buf, sizeof(buf));
+        ssize_t bytes_read = ::read(clnt_sockfd_, buf, sizeof(buf));
         if(bytes_read > 0){
-            readBuffer->append(buf, bytes_read);
+            readBuffer_->append(buf, bytes_read);
         }else if(bytes_read == -1 && errno == EINTR){
             //std::cout << "continue reading" << std::endl;
             continue;
@@ -97,23 +102,23 @@ void Connection::ReadNonBlocking() {
             (errno == EAGAIN) || (errno == EWOULDBLOCK))){
             break;
         }else if (bytes_read == 0){//
-            delete_connection_callback(clnt_sockfd);
+            delete_connection_callback_(clnt_sockfd_);
             break;
         }else{
-            delete_connection_callback(clnt_sockfd);
+            delete_connection_callback_(clnt_sockfd_);
             break;
         }
     }
 }
 
 void Connection::WriteNonBlocking() {
-    char buf[sendBuffer->size()];
-    memcpy(buf, sendBuffer->c_str(), sendBuffer->size());
-    int data_size = sendBuffer->size();
+    char buf[sendBuffer_->size()];
+    memcpy(buf, sendBuffer_->c_str(), sendBuffer_->size());
+    int data_size = sendBuffer_->size();
     int data_left = data_size;
 
     while (data_left > 0) {
-        ssize_t bytes_write = ::write(clnt_sockfd, buf + data_size - data_left, data_left);
+        ssize_t bytes_write = ::write(clnt_sockfd_, buf + data_size - data_left, data_left);
         if(bytes_write == -1 && errno == EINTR){
             //std::cout << "continue writing" << std::endl;
             continue;
@@ -122,7 +127,7 @@ void Connection::WriteNonBlocking() {
             break;
         }
         if(bytes_write == -1){
-            delete_connection_callback(clnt_sockfd);
+            delete_connection_callback_(clnt_sockfd_);
             break;
         }
         data_left -= bytes_write;

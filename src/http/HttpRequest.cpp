@@ -111,6 +111,7 @@ const std::string & HttpRequest::protocol() const{
 void HttpRequest::AddHeader(const std::string &field, const std::string &value){
     headers_[field] = value;
 }
+
 std::string HttpRequest::GetHeader(const std::string &field) const{
     std::string result;
     auto it = headers_.find(field);

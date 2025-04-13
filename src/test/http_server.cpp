@@ -1,8 +1,8 @@
 #include <iostream>
-#include "http/HttpServer.h"
-#include "http/HttpRequest.h"
-#include "http/HttpResponse.h"
-#include "tcp/EventLoop.h"
+#include "../http/HttpServer.h"
+#include "../http/HttpRequest.h"
+#include "../http/HttpResponse.h"
+#include "../tcp/EventLoop.h"
 #include <string>
 #include <thread>
 
@@ -49,9 +49,9 @@ int main(int argc, char *argv[]){
         exit(0);
     }
     std::string ip = "127.0.0.1";
-    HttpServer* server = new HttpServer(ip, port);
-    server->set_build_message_callback(HttpResponseCallback);
-    server->start();
+    HttpServer *server = new HttpServer(ip, port);
+    server->SetBuildResponseMessageCallback(HttpResponseCallback);
+    server->Start();
 
     delete server;
     return 0;

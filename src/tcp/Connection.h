@@ -3,37 +3,47 @@
 #include <arpa/inet.h>
 #include <string>
 #include <memory>
+
 class Channel;
 class EventLoop;
 class Buffer;
 class HttpParase;
+// 管理客户端与当前服务端的一个连接
 class Connection {
+    friend class TcpServer;
 private:
-    EventLoop* lp;
-    int clnt_sockfd;
-    struct sockaddr_in clnt_addr;
-    int serv_sockfd;
-    std::function<void(int)> delete_connection_callback;
-    std::function<void(Connection*)> handle_message_callback;
-    std::unique_ptr<Buffer> readBuffer;
-    std::unique_ptr<Buffer> sendBuffer;
-    std::unique_ptr<Channel> clnt_Channel;
+    std::shared_ptr<EventLoop> lp_;
+    int clnt_sockfd_;
+    struct sockaddr_in clnt_addr_;
+    int serv_sockfd_;
+    std::function<void(int)> delete_connection_callback_;
+    std::function<void(Connection *)> handle_message_callback_;
+    std::unique_ptr<Buffer> readBuffer_;
+    std::unique_ptr<Buffer> sendBuffer_;
+    std::unique_ptr<Channel> clnt_Channel_;
+    std::unique_ptr<HttpParase> http_parase_;
 
-    std::unique_ptr<HttpParase> http_parase;
 public:
-    Connection(EventLoop*, int, std::string, int);
+    enum ConnectionState {
+        Invalid = -1,
+        Connected,
+        Disconected
+    };
+    ConnectionState connection_state_;
+    Connection(std::shared_ptr<EventLoop>, int, std::string, int);
     ~Connection();
-    void set_delete_connection_callback(std::function<void(int)>);
-    void set_handle_message_callback(std::function<void(Connection*)>);
-    void handle_message();
+    void SetDeleteConnectionCallback(std::function<void(int)> &&);
+    void SetHandleMessageCallback(std::function<void(Connection *)> &&);
+    void HandleMessage();
 
-    std::string get_read_buffer();
-    void set_send_buf(const char*);
-    void read();
-    void send(const std::string &);
-    void send(const char*);
-    void write();
+    std::string GetReadBuffer();
+    void Close();
+    void SetSendBuf(const char*);
+    void Read();
+    void Send(const std::string &);
+    void Send(const char*);
+    void Write();
     void ReadNonBlocking();
     void WriteNonBlocking();
-    HttpParase* get_http_parase();
+    HttpParase* GetHttpParase();
 };

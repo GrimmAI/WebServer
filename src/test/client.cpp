@@ -22,7 +22,7 @@ int main() {
     Buffer* sendBuffer = new Buffer();
     Buffer* readBuffer = new Buffer();
     
-    while(true){
+    while(true) {
         sendBuffer->getline();
         ssize_t write_bytes = write(sockfd, sendBuffer->c_str(), sendBuffer->size());
         if(write_bytes == -1){

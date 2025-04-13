@@ -1,29 +1,33 @@
 #pragma once
 #include <sys/epoll.h>
 #include <functional>
+#include <memory>
 
+// Channel是对fd的封装，
+// 一个Channel类自始至终只负责一个文件描述符，
+// 管理该描述符上的事件监听与回调。
 class EventLoop;
 class Channel {
 private:
-    EventLoop* lp;
-    int fd;
-    uint32_t events;
-    uint32_t pre_events;
-    bool inEpoll;
-    std::function<void()> cb;
+    std::shared_ptr<EventLoop> lp_;
+    int fd_;
+    uint32_t events_;
+    uint32_t pre_events_;
+    bool inEpoll_;
+    std::function<void()> cb_;
 
 public:
-    Channel(EventLoop*, int);
+    Channel(std::shared_ptr<EventLoop>, int);
     ~Channel();
 
-    void enableReading();
+    void EnableReading();
 
-    int get_fd();
-    uint32_t get_events();
-    uint32_t get_pre_events();
-    bool getInEpoll();
-    void setInEpoll(bool);
-    void setRevents(uint32_t);
-    void handleEvent();
-    void set_event_callback(std::function<void()>);
+    int GetFd();
+    uint32_t GetEvents();
+    uint32_t GetPreEvents();
+    bool GetInEpoll();
+    void SetInEpoll(bool);
+    void SetRevents(uint32_t);
+    void HandleEvent();
+    void SetEventCallback(std::function<void()> &&);
 };

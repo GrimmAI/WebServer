@@ -2,7 +2,8 @@
 #include "Epoll.h"
 #include "EventLoop.h"
 
-Channel::Channel(EventLoop* _lp, int _fd) : lp(_lp), fd(_fd), events(0), pre_events(0), inEpoll(false), cb(nullptr) {
+Channel::Channel(std::shared_ptr<EventLoop> lp, int fd) : lp_(lp), fd_(fd), events_(0), 
+                                                        pre_events_(0), inEpoll_(false), cb_(nullptr) {
 
 }
 
@@ -10,40 +11,40 @@ Channel::~Channel() {
 
 }
 
-void Channel::enableReading() {
-    events = EPOLLIN | EPOLLET;
-    lp->update_channel(this);
+void Channel::EnableReading() {
+    events_ = EPOLLIN | EPOLLET;
+    lp_->UpdateChannel(this);
 }
 
-int Channel::get_fd() {
-    return fd;
+int Channel::GetFd() {
+    return fd_;
 }
 
-uint32_t Channel::get_events() {
-    return events;
+uint32_t Channel::GetEvents() {
+    return events_;
 }
 
-uint32_t Channel::get_pre_events() {
-    return pre_events;
+uint32_t Channel::GetPreEvents() {
+    return pre_events_;
 }
 
-bool Channel::getInEpoll() {
-    return inEpoll;
+bool Channel::GetInEpoll() {
+    return inEpoll_;
 }
 
-void Channel::setInEpoll(bool ok) {
-    inEpoll = ok;
+void Channel::SetInEpoll(bool in_epoll) {
+    inEpoll_ = in_epoll;
 }
 
-void Channel::setRevents(uint32_t events) {
-    pre_events = events;
+void Channel::SetRevents(uint32_t events) {
+    pre_events_ = events;
 }
 
-void Channel::handleEvent() {
-    cb();
+void Channel::HandleEvent() {
+    cb_();
 }
 
-void Channel::set_event_callback(std::function<void()> func) {
-    cb = func;
+void Channel::SetEventCallback(std::function<void()> &&func) {
+    cb_ = std::move(func);
 }
 

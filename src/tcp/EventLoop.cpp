@@ -3,25 +3,25 @@
 #include "Channel.h"
 
 EventLoop:: EventLoop() {
-    ep = std::make_unique<Epoll>();
+    ep_ = std::make_unique<Epoll>();
 }
 
 EventLoop::~EventLoop() {
 
 }
 
-void EventLoop::loop() {
+void EventLoop::Loop() {
     while (true) {
-        std::vector<Channel*> active_channel = ep->poll();
+        std::vector<Channel *> active_channel = ep_->Poll();
         for (auto &ch: active_channel)
-            ch->handleEvent();
+            ch->HandleEvent();
     }
 }
 
-void EventLoop::update_channel(Channel* ch) {
-    ep->update_channel(ch);
+void EventLoop::UpdateChannel(Channel *ch) {
+    ep_->UpdateChannel(ch);
 }
 
-void EventLoop::delete_channel(Channel* ch) {
-    ep->delete_channel(ch);
+void EventLoop::DeleteChannel(Channel *ch) {
+    ep_->DeleteChannel(ch);
 }

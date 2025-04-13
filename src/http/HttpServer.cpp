@@ -1,5 +1,5 @@
 #include "HttpServer.h"
-#include "../tcp/Server.h"
+#include "../tcp/TcpServer.h"
 #include <functional>
 #include "HttpParase.h"
 #include "../tcp/Connection.h"
@@ -7,50 +7,50 @@
 #include "HttpResponse.h"
 
 HttpServer::HttpServer(std::string ip, int port) {
-    tcp_server = std::make_unique<Server>(ip, port);
+    tcp_server_ = std::make_unique<TcpServer>(ip, port);
 
-    std::function<void(Connection*)> cb = std::bind(&HttpServer::handle_request_message, this, std::placeholders::_1);
-    tcp_server->set_handle_message_callback(cb);
+    std::function<void(Connection*)> cb = std::bind(&HttpServer::HandleRequestMessage, this, std::placeholders::_1);
+    tcp_server_->SetHandleMessageCallback(std::move(cb));
 
-    
 }
 
 HttpServer::~HttpServer() {
 
 }
 
-void HttpServer::handle_request_message(Connection* conn) {
-    HttpParase* parase = conn->get_http_parase();
-    conn->read();
-    if (!parase->parase_message(conn->get_read_buffer().c_str(), conn->get_read_buffer().size())) {
-        conn->send("HTTP/1.1 400 Bad Request\r\n\r\n");
-        // conn->close();
+void HttpServer::HandleRequestMessage(Connection *conn) {
+    HttpParase *parase = conn->GetHttpParase();
+    conn->Read();
+    if (!parase->parase_message(conn->GetReadBuffer().c_str(), conn->GetReadBuffer().size())) {
+        conn->Send("HTTP/1.1 400 Bad Request\r\n\r\n");
+        conn->Close();
     }
 
     if (parase->get_complete_request()) {
-        send_response_message(conn, *parase->get_http_request());
+        SendResponseMessage(conn, *parase->get_http_request());
         parase->reset_context_status();
     }
 }
 
-void HttpServer::send_response_message(Connection* conn, const HttpRequest& request) {
+void HttpServer::SendResponseMessage(Connection *conn, const HttpRequest &request) {
     std::string connection_state = request.GetHeader("Connection");
     bool close = (connection_state == "Close" || (request.version() == HttpRequest::Version::kHttp10 &&
                   connection_state != "keep-alive"));
     HttpResponse response(close);
-    build_response_message_callback(request, &response);
+    build_response_message_callback_(request, &response);
 
-    conn->send(response.message().c_str());
+    conn->Send(response.message().c_str());
 
     if(response.IsCloseConnection()) {
-        // conn->close();
+        conn->Close();
     }
 }
 
-void HttpServer::set_build_message_callback(std::function<void(const HttpRequest&, HttpResponse*)> func) {
-    build_response_message_callback = func;
+// 设置业务回调函数
+void HttpServer::SetBuildResponseMessageCallback(std::function<void(const HttpRequest &, HttpResponse *)> &&func) {
+    build_response_message_callback_ = std::move(func);
 }
 
-void HttpServer::start() {
-    tcp_server->start();
+void HttpServer::Start() {
+    tcp_server_->Start();
 }
