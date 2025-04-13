@@ -5,8 +5,22 @@
 #include "../tcp/EventLoop.h"
 #include <string>
 #include <thread>
+#include <fstream>
+#include <sstream>
 
-const std::string html = " <font color=\"red\">This is html! mannnnnnnnnn! </font> ";
+std::string load_html() {
+    std::ifstream file("/home/mazhaomeng/cpp/WebServer/src/test/client_api.html");
+    if (!file) {
+        std::cerr << "ERROR: can not open HTML" << std::endl;
+        return "";
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+}
+
+const std::string html = load_html();
+
 void HttpResponseCallback(const HttpRequest &request, HttpResponse *response)
 {
     if(request.method() != HttpRequest::Method::kGet){
@@ -38,6 +52,7 @@ void HttpResponseCallback(const HttpRequest &request, HttpResponse *response)
 }
 
 int main(int argc, char *argv[]){
+    std::cout << html << std::endl;
     int port;
     if (argc <= 1)
     {

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>多模态图片检索系统</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+
+        .search-box {
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        #searchInput {
+            width: 60%;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 24px;
+            outline: none;
+        }
+
+        #searchButton {
+            padding: 12px 24px;
+            background-color: #1890ff;
+            color: white;
+            border: none;
+            border-radius: 24px;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: background-color 0.3s;
+        }
+
+        #searchButton:hover {
+            background-color: #096dd9;
+        }
+
+        .results {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .image-card {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .image-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .image-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .loading {
+            text-align: center;
+            font-size: 18px;
+            color: #666;
+            display: none;
+        }
+
+        .error {
+            color: #ff4d4f;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="search-box">
+        <input type="text" id="searchInput" placeholder="输入描述文字，例如：一只在草地上奔跑的金毛犬...">
+        <button id="searchButton">搜索图片</button>
+    </div>
+    
+    <div class="loading" id="loading">正在搜索中...</div>
+    <div class="error" id="error"></div>
+    
+    <div class="results" id="results">
+        <!-- 图片结果将动态插入到这里 -->
+    </div>
+
+    <script>
+        // 模拟API响应数据（实际开发需替换为真实API）
+        const mockData = [
+            { 
+                url: "https://picsum.photos/300/200?random=1",
+                similarity: 0.92,
+                metadata: "金毛犬在公园草地奔跑"
+            },
+            {
+                url: "https://picsum.photos/300/200?random=2",
+                similarity: 0.88,
+                metadata: "阳光下的快乐狗狗"
+            }
+        ];
+
+        // DOM元素
+        const searchInput = document.getElementById('searchInput');
+        const searchButton = document.getElementById('searchButton');
+        const resultsDiv = document.getElementById('results');
+        const loadingDiv = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+
+        // 模拟API请求
+        async function searchImages(query) {
+            try {
+                // 实际开发时替换为：
+                // const response = await fetch('/api/search', {
+                //     method: 'POST',
+                //     body: JSON.stringify({ query })
+                // });
+                // const data = await response.json();
+                
+                // 模拟延迟
+                await new Promise(resolve => setTimeout(resolve, 800));
+                return mockData;
+            } catch (error) {
+                throw new Error('搜索服务暂时不可用');
+            }
+        }
+
+        // 渲染结果
+        function displayResults(images) {
+            resultsDiv.innerHTML = images.map(image => `
+                <div class="image-card">
+                    <img src="${image.url}" alt="${image.metadata}">
+                    <div style="padding: 12px">
+                        <p>${image.metadata}</p>
+                        <small>匹配度：${(image.similarity * 100).toFixed(1)}%</small>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 事件处理
+        searchButton.addEventListener('click', async () => {
+            const query = searchInput.value.trim();
+            
+            if (!query) {
+                errorDiv.textContent = "请输入搜索内容";
+                return;
+            }
+
+            try {
+                errorDiv.textContent = "";
+                loadingDiv.style.display = "block";
+                resultsDiv.innerHTML = "";
+
+                const results = await searchImages(query);
+                
+                if (results.length === 0) {
+                    errorDiv.textContent = "未找到相关图片";
+                } else {
+                    displayResults(results);
+                }
+            } catch (error) {
+                errorDiv.textContent = error.message;
+            } finally {
+                loadingDiv.style.display = "none";
+            }
+        });
+
+        // 回车键支持
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchButton.click();
+            }
+        });
+    </script>
+</body>
+</html>
