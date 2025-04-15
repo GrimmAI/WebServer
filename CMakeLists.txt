@@ -10,9 +10,34 @@ include_directories(
 )
 
 # 设置编译器和编译选项
-set(CMAKE_CXX_COMPILER "g++")
+set(CMAKE_CXX_COMPILER "/usr/bin/c++")  # 显式设置 C++ 编译器路径
 set(CMAKE_CXX_FLAGS "-g -Wall -Werror -std=c++14")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0")
+
+# jsoncpp
+include(FetchContent)
+set(JSONCPP_WITH_TEST OFF)
+set(JSONCPP_WITH_POST_BUILD_UNITTEST OFF)
+set(JSONCPP_WITH_WARNING_AS_ERROR OFF)
+set(JSONCPP_WITH_EXAMPLE OFF)
+set(JSONCPP_STATIC_WINDOWS_RUNTIME  OFF)
+set(BUILD_SHARED_LIBS  OFF)
+set(BUILD_STATIC_LIBS  ON)
+set(BUILD_OBJECT_LIBS  ON)
+FetchContent_Declare(
+    jsoncpp
+    GIT_REPOSITORY https://gitee.com/AnPilgrim/jsoncpp.git
+    GIT_TAG master
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE
+)
+FetchContent_MakeAvailable(jsoncpp)
+if(NOT TARGET jsoncpp_static)
+  message(FATAL_ERROR "Target jsoncpp_static not available.")
+endif()
+if(NOT TARGET jsoncpp_object)
+  message(FATAL_ERROR "Target jsoncpp_object not available.")
+endif()
 
 # 查找线程库
 find_package(Threads REQUIRED)
@@ -28,4 +53,4 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/build/test)
 add_executable(httpserver src/test/http_server.cpp ${SRC_LIST1} ${SRC_LIST2})
 
 # 链接线程库
-target_link_libraries(httpserver ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(httpserver jsoncpp_object ${CMAKE_THREAD_LIBS_INIT})
