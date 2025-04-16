@@ -93,20 +93,6 @@
     </div>
 
     <script>
-        // 模拟API响应数据（实际开发需替换为真实API）
-        const mockData = [
-            { 
-                url: "https://picsum.photos/300/200?random=1",
-                similarity: 0.92,
-                metadata: "金毛犬在公园草地奔跑"
-            },
-            {
-                url: "https://picsum.photos/300/200?random=2",
-                similarity: 0.88,
-                metadata: "阳光下的快乐狗狗"
-            }
-        ];
-
         // DOM元素
         const searchInput = document.getElementById('searchInput');
         const searchButton = document.getElementById('searchButton');
@@ -114,19 +100,23 @@
         const loadingDiv = document.getElementById('loading');
         const errorDiv = document.getElementById('error');
 
-        // 模拟API请求
+        // 发起搜索请求
         async function searchImages(query) {
             try {
-                // 实际开发时替换为：
-                // const response = await fetch('/api/search', {
-                //     method: 'POST',
-                //     body: JSON.stringify({ query })
-                // });
-                // const data = await response.json();
-                
-                // 模拟延迟
-                await new Promise(resolve => setTimeout(resolve, 800));
-                return mockData;
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query })
+                });
+
+                if (!response.ok) {
+                    throw new Error('搜索服务暂时不可用');
+                }
+
+                const data = await response.json();
+                return data;
             } catch (error) {
                 throw new Error('搜索服务暂时不可用');
             }
@@ -134,21 +124,35 @@
 
         // 渲染结果
         function displayResults(images) {
-            resultsDiv.innerHTML = images.map(image => `
-                <div class="image-card">
-                    <img src="${image.url}" alt="${image.metadata}">
-                    <div style="padding: 12px">
-                        <p>${image.metadata}</p>
-                        <small>匹配度：${(image.similarity * 100).toFixed(1)}%</small>
+            let htmlContent = ''; // 初始化HTML内容
+
+            images.forEach(image => {
+                htmlContent += `
+                    <div class="image-card">
+                        <img src="${image.url}" alt="${image.metadata}" onerror="handleImageError(this)">
+                        <div style="padding: 12px">
+                            <p>${image.metadata}</p>
+                            <small>匹配度：${(image.similarity * 100).toFixed(1)}%</small>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            });
+
+            // 将生成的HTML内容插入到 <div id="results"> 的内部
+            resultsDiv.innerHTML = htmlContent;
+        }
+
+        // 处理图片加载失败
+        function handleImageError(imgElement) {
+            imgElement.src = "http://127.0.0.1:80/test.jpg"; // 替换为你的占位图路径
+            imgElement.alt = "图片加载失败";
+            imgElement.style.filter = "grayscale(100%)"; // 可选：将图片设置为灰度
         }
 
         // 事件处理
         searchButton.addEventListener('click', async () => {
             const query = searchInput.value.trim();
-            
+
             if (!query) {
                 errorDiv.textContent = "请输入搜索内容";
                 return;
@@ -160,14 +164,14 @@
                 resultsDiv.innerHTML = "";
 
                 const results = await searchImages(query);
-                
+
                 if (results.length === 0) {
                     errorDiv.textContent = "未找到相关图片";
                 } else {
                     displayResults(results);
                 }
             } catch (error) {
-                errorDiv.textContent = error.message;
+                errorDiv.textContent = `搜索失败，可能是网络问题或接口不可用。请检查链接的合法性并稍后重试。错误信息：${error.message}`;
             } finally {
                 loadingDiv.style.display = "none";
             }
