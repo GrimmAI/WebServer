@@ -3,11 +3,23 @@
 #include "../http/HttpRequest.h"
 #include "../http/HttpResponse.h"
 #include "../tcp/EventLoop.h"
+#include "../retrieval/Search.h"
 #include <string>
 #include <thread>
 #include <fstream>
 #include <sstream>
 #include <json/json.h> // 使用 JSON for Modern C++ 库来处理 JSON 数据
+// #include <opencv2/opencv.hpp>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <filesystem>
+
+
+std::string get_filename(const std::string& path) {
+    std::filesystem::path p(path);
+    return p.filename().string(); // 直接获取文件名
+}
 
 std::string load_html() {
     std::ifstream file("/home/mazhaomeng/cpp/WebServer/src/test/client_api.html");
@@ -21,6 +33,7 @@ std::string load_html() {
 }
 
 const std::string html = load_html();
+Search search;
 
 void HttpResponseCallback(const HttpRequest &request, HttpResponse *response)
 {
@@ -65,29 +78,17 @@ void HttpResponseCallback(const HttpRequest &request, HttpResponse *response)
             }
 
             // 获取用户输入的查询
-            std::string query = requestJson["query"].asString();
+            std::string query = requestJson["query"].asString() + "\n";
             // std::cout << "query: " << query << std::endl;
+            auto query_embedding = search.GetUserQueryTextEmbedding(query);
 
-
-            // std::vector<std::string> local_images(100);
-            // for (int i = 0; i < 100; i++) {
-            //     local_images[i] = "https://picsum.photos/300/200?random=" + std::to_string(i);
-            // }
-            // 模拟图片检索逻辑
-            std::vector<std::string> local_images = {
-                "https://picsum.photos/300/200?random=1",
-                "https://picsum.photos/300/200?random=2",
-                "https://picsum.photos/300/200?random=3",
-                "https://picsum.photos/300/200?random=4",
-                "https://picsum.photos/300/200?random=5",
-                "http://127.0.0.1:80/test.jpg"
-            };
+            auto local_images = search.GetTopKResults(query_embedding, 12);
 
             // 转换本地路径为Web URL
             Json::Value json_data;
             for (const auto& local_path : local_images) {
                 Json::Value item;
-                item["url"] = local_path;
+                item["url"] = "http://127.0.0.1:80/image/" + get_filename(local_path);
                 item["similarity"] = 0.92;
                 item["metadata"] = "金毛犬在公园草地奔跑";
                 json_data.append(item);
