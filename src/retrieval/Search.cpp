@@ -66,15 +66,42 @@ std::vector<float> Search::GetUserQueryTextEmbedding(std::string query_text) {
     // // 从共享内存读取特征向量
     // float* features = static_cast<float*>(ptr);
     // 计算特征向量的起始位置
-    const float* features = reinterpret_cast<const float*>(
-        static_cast<const char*>(ptr) + query_text.size()
-    );
+    // const float* features = reinterpret_cast<const float*>(
+    //     static_cast<const char*>(ptr) + query_text.size()
+    // );
 
-    // 假设特征向量的大小为512
-    for (int i = 0; i < 512; ++i) {
-        res[i] = features[i];
+    // 读取文本
+    size_t text_length = query_text.size() + 1; // 包含终止符
+    size_t padding = (4 - (text_length % 4)) % 4;
+    text_length += padding;
+
+    // 读取特征向量
+    // const float* features = reinterpret_cast<const float*>(static_cast<const char*>(ptr) + text_length);
+
+    // // 假设特征向量的大小为512
+    // for (int i = 0; i < 512; ++i) {
+    //     res[i] = features[i];
+    // }
+
+    std::string output_bin = "/home/mazhaomeng/cpp/WebServer/temp_text_embedding.bin";
+    std::filesystem::path abs_path = std::filesystem::absolute(output_bin);
+    std::ifstream bin_file(abs_path, std::ios::binary);
+    if (!bin_file.is_open()) {
+        std::cerr << "无法打开二进制文件: " << abs_path << std::endl;
+        return {};
     }
 
+    // 验证文件大小
+    bin_file.seekg(0, std::ios::end);
+    size_t file_size = bin_file.tellg();
+    bin_file.seekg(0, std::ios::beg);
+
+
+    // 读取数据
+    std::vector<float> features(512);
+    bin_file.read(reinterpret_cast<char*>(features.data()), file_size);
+
+    res = features;
     // 清理
     munmap(ptr, SHM_SIZE);
     close(fd);
@@ -82,14 +109,11 @@ std::vector<float> Search::GetUserQueryTextEmbedding(std::string query_text) {
 
     // 删除通知文件
     unlink("/home/mazhaomeng/cpp/WebServer/done.txt");
+    unlink(output_bin.c_str());
     return res;
 }
 
 std::vector<std::string> Search::GetTopKResults(std::vector<float> query_embedding, int top_k) {
-    for (u_int32_t i = 0; i < query_embedding.size(); i++) {
-        std::cout << query_embedding[i] << ", ";
-    }
-    std::cout << std::endl;
     std::ifstream meta_file("/home/mazhaomeng/cpp/WebServer/Index/features_meta.json");
     if (!meta_file.is_open()) {
         std::cerr << "无法打开元数据文件" << std::endl;
