@@ -12,14 +12,15 @@
 #include <algorithm>
 #include <unordered_map>
 
-#define SHM_SIZE 1024 * 1024
+#define SHM_NAME "/cn_clip_shm"
+#define SHM_SIZE (1024 * 1024)
 
 Search::Search() {
-
+    std::system("python3 /home/mazhaomeng/cpp/WebServer/src/utils/get_text_embedding.py &");
 }
 
 Search::~Search() {
-
+    std::system("pkill -f /home/mazhaomeng/cpp/WebServer/src/utils/get_text_embedding.py");
 }
 
 float Search::CalcSim(std::vector<float> &a, std::vector<float> &b) {
@@ -30,87 +31,61 @@ float Search::CalcSim(std::vector<float> &a, std::vector<float> &b) {
     return res;
 }
 
-std::vector<float> Search::GetUserQueryTextEmbedding(std::string query_text) {
-    // 创建共享内存
-    int fd = shm_open("/my_shm", O_CREAT | O_RDWR, 0666);
-    if (fd == -1) {
-        perror("shm_open failed");
-        return {};
-    }
-    ftruncate(fd, SHM_SIZE);
-
-    // 映射共享内存
-    void* ptr = mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (ptr == MAP_FAILED) {
-        perror("mmap failed");
-        close(fd);
-        return {};
+std::vector<float> Search::GetUserQueryTextEmbedding(std::string &text) {
+    // 共享内存设置
+    int shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
+    if (shm_fd == -1) {
+        throw std::runtime_error("shm_open failed");
     }
 
-    std::memcpy(ptr, query_text.c_str(), query_text.size() + 1);
-
-    // 启动Python程序
-    std::system("python3 /home/mazhaomeng/cpp/WebServer/src/utils/get_text_embedding.py &");
-
-    // 等待Python程序处理完成
-    while (true) {
-        std::ifstream check_file("/home/mazhaomeng/cpp/WebServer/done.txt");
-        if (check_file) {
-            check_file.close();
-            break;
-        }
-        sleep(1);
+    // 内存映射
+    void* shm_ptr = mmap(NULL, SHM_SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (shm_ptr == MAP_FAILED) {
+        close(shm_fd);
+        throw std::runtime_error("mmap failed");
     }
 
-    std::vector<float> res(512);
-    // // 从共享内存读取特征向量
-    // float* features = static_cast<float*>(ptr);
-    // 计算特征向量的起始位置
-    // const float* features = reinterpret_cast<const float*>(
-    //     static_cast<const char*>(ptr) + query_text.size()
-    // );
+    // 写入文本数据
+    size_t text_len = text.size() + 1; // 包含null终止符
+    if (text_len > SHM_SIZE) {
+        munmap(shm_ptr, SHM_SIZE);
+        close(shm_fd);
+        throw std::runtime_error("Text exceeds SHM capacity");
+    }
+    memcpy(shm_ptr, text.c_str(), text_len);
 
-    // 读取文本
-    size_t text_length = query_text.size() + 1; // 包含终止符
-    size_t padding = (4 - (text_length % 4)) % 4;
-    text_length += padding;
+    // 信号文件路径
+    const std::string req_file = "/home/mazhaomeng/cpp/WebServer/request.lock";
+    const std::string done_file = "/home/mazhaomeng/cpp/WebServer/done.lock";
+    const std::string output_bin = "/home/mazhaomeng/cpp/WebServer/text_embedding.bin";
 
-    // 读取特征向量
-    // const float* features = reinterpret_cast<const float*>(static_cast<const char*>(ptr) + text_length);
-
-    // // 假设特征向量的大小为512
-    // for (int i = 0; i < 512; ++i) {
-    //     res[i] = features[i];
-    // }
-
-    std::string output_bin = "/home/mazhaomeng/cpp/WebServer/temp_text_embedding.bin";
-    std::filesystem::path abs_path = std::filesystem::absolute(output_bin);
-    std::ifstream bin_file(abs_path, std::ios::binary);
-    if (!bin_file.is_open()) {
-        std::cerr << "无法打开二进制文件: " << abs_path << std::endl;
-        return {};
+    // 触发处理
+    std::ofstream(req_file).close();
+    
+    // 等待处理完成
+    while (!std::filesystem::exists(done_file)) {
+        usleep(10000); // 10ms轮询间隔
     }
 
-    // 验证文件大小
-    bin_file.seekg(0, std::ios::end);
-    size_t file_size = bin_file.tellg();
-    bin_file.seekg(0, std::ios::beg);
+    // 读取结果
+    std::ifstream bin_stream(output_bin, std::ios::binary);
+    if (!bin_stream) {
+        munmap(shm_ptr, SHM_SIZE);
+        close(shm_fd);
+        throw std::runtime_error("Failed to open result file");
+    }
 
-
-    // 读取数据
     std::vector<float> features(512);
-    bin_file.read(reinterpret_cast<char*>(features.data()), file_size);
+    bin_stream.read(reinterpret_cast<char*>(features.data()), 512*sizeof(float));
 
-    res = features;
-    // 清理
-    munmap(ptr, SHM_SIZE);
-    close(fd);
-    shm_unlink("/my_shm");
+    // 清理资源
+    munmap(shm_ptr, SHM_SIZE);
+    close(shm_fd);
+    remove(req_file.c_str());
+    remove(done_file.c_str());
+    remove(output_bin.c_str());
 
-    // 删除通知文件
-    unlink("/home/mazhaomeng/cpp/WebServer/done.txt");
-    unlink(output_bin.c_str());
-    return res;
+    return features;
 }
 
 std::vector<std::string> Search::GetTopKResults(std::vector<float> query_embedding, int top_k) {

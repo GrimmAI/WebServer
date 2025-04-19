@@ -1,3 +1,4 @@
+# get_text_embedding_service.py
 import numpy as np
 import mmap
 import os
@@ -5,58 +6,66 @@ import time
 import torch
 
 import cn_clip.clip as clip
-from cn_clip.clip import load_from_name, available_models
+from cn_clip.clip import load_from_name
 
-start_time = time.time()
+# 常驻模型加载
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model, _ = load_from_name("ViT-B-16", device=device, download_root='/home/mazhaomeng/cpp/WebServer/model')
 model.eval()
 
-
+# 共享配置
+SHM_NAME = "/dev/shm/cn_clip_shm"
 SHM_SIZE = 1024 * 1024  # 1MB
-SHM_NAME = "/dev/shm/my_shm"  # 使用绝对路径
+REQUEST_FILE = "/home/mazhaomeng/cpp/WebServer/request.lock"
+DONE_FILE = "/home/mazhaomeng/cpp/WebServer/done.lock"
+OUTPUT_BIN = "/home/mazhaomeng/cpp/WebServer/text_embedding.bin"
 
+class SharedMemoryManager:
+    def __init__(self):
+        # 创建或附加共享内存
+        self.fd = os.open(SHM_NAME, os.O_RDWR | os.O_CREAT, 0o666)
+        os.ftruncate(self.fd, SHM_SIZE)
+        self.buf = mmap.mmap(self.fd, SHM_SIZE, mmap.MAP_SHARED, 
+                           mmap.PROT_READ | mmap.PROT_WRITE)
+        
+    def __enter__(self):
+        return self.buf
+        
+    def __exit__(self, *args):
+        self.buf.close()
+        os.close(self.fd)
 
-# 等待共享内存对象创建
-while True:
+def inference_service():
+    with SharedMemoryManager() as shm:
+        while True:
+            # 等待请求信号
+            while not os.path.exists(REQUEST_FILE):
+                time.sleep(0.01)
+                
+            # 读取输入文本
+            shm.seek(0)
+            text = shm.read(shm.find(b'\x00')).decode('utf-8')
+            
+            # 特征提取
+            with torch.no_grad():
+                tokens = clip.tokenize([text]).to(device)
+                features = model.encode_text(tokens)
+                features /= features.norm(dim=-1, keepdim=True)
+            
+            # 保存结果
+            features.cpu().numpy().astype(np.float32).tofile(OUTPUT_BIN)
+            
+            # 发送完成信号
+            with open(DONE_FILE, 'w') as f:
+                f.write(str(os.getpid()))
+                
+            # 清理请求
+            os.remove(REQUEST_FILE)
+
+if __name__ == "__main__":
     try:
-        fd = os.open(SHM_NAME, os.O_RDWR)
-        break
-    except FileNotFoundError:
-        time.sleep(1)
-
-buf = mmap.mmap(fd, SHM_SIZE, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE)
-
-# 读取文本
-text = buf.readline().decode('utf-8').strip()
-print(f"Received text: {text}")
-
-text_token = clip.tokenize([text]).to(device)
-
-with torch.no_grad():
-    text_features = model.encode_text(text_token)
-    # 对特征进行归一化，请使用归一化后的图文特征用于下游任务
-    text_features /= text_features.norm(dim=-1, keepdim=True) 
-# 模拟特征提取
-features = text_features.cpu().numpy().astype(np.float32)
-# print("features from py: ", features)
-
-output_bin = "/home/mazhaomeng/cpp/WebServer/temp_text_embedding.bin"
-with open(output_bin, "wb") as f:
-    f.write(features.tobytes())
-
-# # 写入共享内存
-# text_bytes = text.encode('utf-8') + b'\x00'
-# padding = (4 - (len(text_bytes) % 4)) % 4
-# buf.write(text_bytes + b'\x00' * padding)
-# buf.write(features.tobytes())
-
-# 通知C++程序处理完成
-with open("/home/mazhaomeng/cpp/WebServer/done.txt", "w") as f:
-    f.write("done")
-
-end_time = time.time()
-print(end_time - start_time)
-# 清理
-buf.close()
-os.close(fd)
+        inference_service()
+    finally:
+        # 清理共享内存
+        if os.path.exists(SHM_NAME):
+            os.remove(SHM_NAME)

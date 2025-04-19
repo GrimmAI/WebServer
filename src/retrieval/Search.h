@@ -10,7 +10,7 @@ public:
     Search();
     ~Search();
     
-    std::vector<float> GetUserQueryTextEmbedding(std::string);
+    std::vector<float> GetUserQueryTextEmbedding(std::string &);
     std::vector<std::string> GetTopKResults(std::vector<float>, int);
     float CalcSim(std::vector<float> &, std::vector<float> &);
 };
