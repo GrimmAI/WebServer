@@ -33,7 +33,7 @@ std::string load_html() {
 }
 
 const std::string html = load_html();
-Search search;
+Search *search = new Search();
 
 void HttpResponseCallback(const HttpRequest &request, HttpResponse *response)
 {
@@ -80,9 +80,9 @@ void HttpResponseCallback(const HttpRequest &request, HttpResponse *response)
             // 获取用户输入的查询
             std::string query = requestJson["query"].asString() + "\n";
             // std::cout << "query: " << query << std::endl;
-            auto query_embedding = search.GetUserQueryTextEmbedding(query);
+            auto query_embedding = search->GetUserQueryTextEmbedding(query);
 
-            auto local_images = search.GetTopKResults(query_embedding, 12);
+            auto local_images = search->GetTopKResults(query_embedding, 12);
 
             // 转换本地路径为Web URL
             Json::Value json_data;
@@ -130,5 +130,6 @@ int main(int argc, char *argv[]){
     server->Start();
 
     delete server;
+    delete search;
     return 0;
 }
